@@ -1,38 +1,95 @@
 # 20 Newsgroups Semantic Search
 
-A production-ready semantic search system over the [20 Newsgroups dataset](https://archive.ics.uci.edu/dataset/113/twenty+newsgroup) featuring **NMF fuzzy clustering**, **sentence-transformer embeddings**, and a **from-scratch cluster-bucketed semantic cache**.
+A lightweight semantic search system over the [20 Newsgroups dataset](https://archive.ics.uci.edu/dataset/113/twenty+newsgroup) featuring **NMF fuzzy clustering**, **sentence-transformer embeddings**, and a **from-scratch cluster-bucketed semantic cache**.
 The system indexes **19,898 cleaned documents** from the 20 Newsgroups dataset and exposes a semantic search API with cluster-aware caching.
 
-Built as an assignment.
+Built as part of an AI engineering assignment.
 
 ---
 
 ## Architecture
 
+```mermaid
+flowchart LR
+
+User[User Query] --> Frontend[React Frontend]
+
+Frontend -->|POST /query| API[FastAPI Service]
+
+API --> Embedder[Sentence Transformer<br>MiniLM-L6-v2]
+
+Embedder --> Clusterer[NMF Cluster Model]
+
+Clusterer --> CacheCheck[Semantic Cache<br>Cluster Bucketed]
+
+CacheCheck -->|Cache Hit| Return[Return Cached Result]
+
+CacheCheck -->|Cache Miss| VectorSearch[ChromaDB Vector Search]
+
+VectorSearch --> Result[Top-K Documents]
+
+Result --> CacheStore[Store in Cache]
+
+CacheStore --> Return
+
+Return --> Frontend
 ```
-┌─────────────────────────────────────────────────────────────┐
-│           React Frontend  (Vite, port 3000)                 │
-│           /api/* proxied → localhost:8000                   │
-└──────────────────────────┬──────────────────────────────────┘
-                           │ POST /query
-                           ▼
-┌─────────────────────────────────────────────────────────────┐
-│                    FastAPI Application                      │
-│                                                             │
-│  1. Embed query ──► Sentence-Transformer (all-MiniLM-L6-v2) │
-│  2. Cluster     ──► NMF (TF-IDF → 23 components)            │
-│  3. Cache check ──► Cluster-bucketed semantic cache         │
-│     ├─ HIT  → return cached result (skip ChromaDB)          │
-│     └─ MISS → 4. ChromaDB ANN search → cache + return       │
-└──────────────────────────┬──────────────────────────────────┘
-                           │
-              ┌────────────┴────────────┐
-              ▼                         ▼
-      ┌──────────────┐        ┌─────────────────┐
-      │   ChromaDB   │        │ Semantic Cache  │
-      │ 19,898 docs  │        │ 23 buckets      │
-      │ cosine sim   │        │ threshold=0.85  │
-      └──────────────┘        └─────────────────┘
+---
+
+## System Architecture
+
+```mermaid
+flowchart TB
+
+subgraph Client
+    A[React Frontend]
+end
+
+subgraph Backend
+    B[FastAPI API]
+    C[Embedding Model<br>all-MiniLM-L6-v2]
+    D[NMF Cluster Model]
+    E[Semantic Cache]
+end
+
+subgraph Storage
+    F[ChromaDB Vector Database]
+    G[Processed Corpus]
+end
+
+A -->|HTTP Request| B
+B --> C
+C --> D
+D --> E
+E -->|Hit| B
+E -->|Miss| F
+F --> B
+G --> F
+```
+---
+## Data Flow
+```mermaid
+flowchart TD
+
+User --> Query[Submit Query]
+
+Query --> API[FastAPI]
+
+API --> Embed[Generate Embedding]
+
+Embed --> Cluster[Compute Cluster Membership]
+
+Cluster --> CacheCheck[Semantic Cache Lookup]
+
+CacheCheck -->|Hit| Result1[Return Cached Result]
+
+CacheCheck -->|Miss| VectorSearch[ChromaDB Search]
+
+VectorSearch --> Results[Retrieve Top-K Docs]
+
+Results --> CacheStore[Store in Cache]
+
+CacheStore --> Result2[Return Results]
 ```
 
 ---
@@ -108,7 +165,7 @@ Validated via threshold sweep analysis in `scripts/05_explore_clusters.py`.
 - Python 3.10+
 - Node.js 18+ & npm
 - 4 GB RAM (sentence-transformer + ChromaDB)
-- ~500 MB disk (model weights + index)
+- ~500 MB disk space (model weights, vector index, and processed corpus)
 
 ### Backend Setup
 
@@ -132,21 +189,29 @@ cp .env.example .env   # or use the existing .env
 Execute scripts **in order** — each depends on the previous:
 
 ```bash
-# 1. Download & extract 20 Newsgroups dataset
+# 1. Download & extract dataset
 python scripts/01_download_data.py
 
-# 2. Clean & preprocess (header removal, deduplication, quality filter)
+# 2. Clean & preprocess corpus
 python scripts/02_preprocess.py
 
-# 3. Embed all documents & index into ChromaDB
+# 3. Initial embedding + indexing
+# (runs without cluster assignments yet)
 python scripts/03_embed_and_index.py
 
-# 4. Fit NMF cluster model (elbow analysis + cluster labels)
+# 4. Fit NMF clustering model
 python scripts/04_cluster.py
 
-# 5. Explore clusters, threshold sweep, cache simulation
+# 5. Re-run embedding + indexing
+# (adds cluster memberships to metadata)
+python scripts/03_embed_and_index.py
+
+# 6. Explore cluster quality & threshold analysis
 python scripts/05_explore_clusters.py
 ```
+Note: `03_embed_and_index.py` is executed twice. The first run builds
+the vector index, while the second run (after clustering) enriches
+document metadata with cluster memberships.
 
 ### Start the API
 
@@ -169,25 +234,6 @@ npm run dev
 ```
 
 Open `http://localhost:3000` in your browser.
-
-### Production Build
-
-```bash
-cd frontend
-
-# Build optimised static assets into frontend/dist/
-npm run build
-
-# Preview the production build locally
-npm run preview
-```
-
-For deployment, serve the `frontend/dist/` directory with any static file server (Nginx, Vercel, Netlify, Cloudflare Pages, etc.) and set the `VITE_API_URL` environment variable to point to the deployed FastAPI backend:
-
-```bash
-# Example: build with custom API URL
-VITE_API_URL=https://api.yourdomain.com npm run build
-```
 
 ---
 
@@ -319,9 +365,12 @@ newsgroups_search/
 ├── Dockerfile                   # Multi-stage build with baked model weights
 ├── docker-compose.yml           # One-command deployment
 ├── requirements.txt             # Pinned Python dependencies
-└── .env                         # Configuration (all tunables)
+└── .env.example                         # Configuration (all tunables)
 ```
-
+Note: The `data/` directory is intentionally empty in the repository
+(except for a `.gitkeep` placeholder). All embeddings,
+cluster models, and vector indexes are generated by running the
+pipeline scripts in the `scripts/` directory.
 ---
 
 ## Configuration
