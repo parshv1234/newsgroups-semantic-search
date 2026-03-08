@@ -1,0 +1,54 @@
+# ── Python ──────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+*.egg
+dist/
+build/
+
+# ── Virtual Environment ────────────────────────────
+venv/
+.venv/
+env/
+
+# ── Environment Variables ──────────────────────────
+.env
+.env.local
+.env.*.local
+
+# ── Data & Model Artifacts ─────────────────────────
+data/
+*.joblib
+*.npy
+*.npz
+*.jsonl
+
+# ── ChromaDB ───────────────────────────────────────
+chroma_db/
+
+# ── IDE / Editor ───────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ── OS ─────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ── Jupyter ────────────────────────────────────────
+.ipynb_checkpoints/
+notebooks/
+
+# ── Testing ────────────────────────────────────────
+.pytest_cache/
+htmlcov/
+.coverage
+
+# ── Frontend (React / Vite) ────────────────────────
+frontend/node_modules/
+frontend/dist/
+frontend/.env.local
+frontend/.env.*.local
