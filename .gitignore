@@ -17,12 +17,14 @@ env/
 .env.local
 .env.*.local
 
-# ── Data & Model Artifacts ─────────────────────────
-data/
+# Data folder structure
+data/*
+!data/.gitkeep
+
+# model artifacts
 *.joblib
 *.npy
 *.npz
-*.jsonl
 
 # ── ChromaDB ───────────────────────────────────────
 chroma_db/
