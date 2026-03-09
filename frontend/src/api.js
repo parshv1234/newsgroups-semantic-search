@@ -4,7 +4,7 @@
  * In development, Vite's proxy rewrites /api/* → http://localhost:8000/*
  * In production, set VITE_API_URL to the deployed backend URL.
  */
-const BASE = import.meta.env.example.VITE_API_URL || '/api';
+const BASE = import.meta.env.VITE_API_URL || '/api';
 
 async function request(path, options = {}) {
     const res = await fetch(`${BASE}${path}`, {
