@@ -1,3 +1,4 @@
+### Update: The frontend was not working earlier so it is updated now
 # 20 Newsgroups Semantic Search
 
 A lightweight semantic search system over the [20 Newsgroups dataset](https://archive.ics.uci.edu/dataset/113/twenty+newsgroup) featuring **NMF fuzzy clustering**, **sentence-transformer embeddings**, and a **from-scratch cluster-bucketed semantic cache**.
